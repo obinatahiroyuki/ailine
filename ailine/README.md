@@ -2,37 +2,17 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-### 開発サーバー
-
-LINE Webhook の AI 処理は [Inngest](https://www.inngest.com/) で非同期実行されます。ローカル開発時は **2つのターミナル** で以下を実行してください。
+First, run the development server:
 
 ```bash
-# ターミナル1: Next.js
 npm run dev
-
-# ターミナル2: Inngest Dev Server（イベントキュー）
-npx inngest-cli@latest dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
-
-Inngest Dev Server の UI: http://localhost:8288
-
-### 本番デプロイ（Vercel）
-
-1. [Inngest](https://app.inngest.com) でアプリを登録
-2. Vercel の環境変数に `INNGEST_SIGNING_KEY` と `INNGEST_EVENT_KEY` を設定
-3. Inngest の Sync で `/api/inngest` を登録
-
-### 課金（Stripe）の有効化
-
-課金はデフォルトで無効です。システム設定（`/admin/settings`）で有効にできます。
-
-1. [Stripe](https://dashboard.stripe.com) でプロダクトと価格を作成
-2. 環境変数を設定:
-   - `STRIPE_SECRET_KEY`: Stripe シークレットキー
-   - `STRIPE_WEBHOOK_SECRET`: Webhook 署名シークレット（`/api/stripe/webhook` を登録）
-   - `STRIPE_PRICE_ID_STANDARD`, `STRIPE_PRICE_ID_PRO`: 各プランの Price ID（シード実行前に設定、または DB で直接更新）
-3. `npm run db:seed` でプランを投入（初回のみ）
-4. 管理画面の「設定」で課金を有効化
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 

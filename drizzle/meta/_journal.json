@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1773892619668,
+      "tag": "0000_natural_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1773897808521,
+      "tag": "0001_cheerful_veda",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773902234720,
+      "tag": "0002_loving_hammerhead",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1774032459876,
+      "tag": "0003_skinny_masque",
+      "breakpoints": true
+    }
+  ]
+}
