@@ -16,5 +16,9 @@ export async function replyToLine(
       messages: [{ type: "text", text }],
     }),
   });
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error("[LINE reply failed]", res.status, errBody);
+  }
   return res.ok;
 }

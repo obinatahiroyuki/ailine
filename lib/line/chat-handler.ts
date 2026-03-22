@@ -237,7 +237,8 @@ export async function handleLineMessage(
       console.error("API usage record error:", usageErr);
     }
   } catch (err) {
-    console.error("AI generation error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("AI generation error:", msg, err);
     await replyToLine(
       channel.accessToken,
       replyToken,
