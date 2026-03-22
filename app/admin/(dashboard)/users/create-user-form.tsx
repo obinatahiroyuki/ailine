@@ -31,7 +31,7 @@ export function CreateUserForm() {
         onClick={() => setOpen(true)}
         className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
       >
-        ユーザーを追加
+        コンテンツ管理者を追加
       </button>
     );
   }
@@ -41,7 +41,7 @@ export function CreateUserForm() {
       onSubmit={handleSubmit}
       className="rounded-lg border border-neutral-200 bg-neutral-50 p-4"
     >
-      <h3 className="mb-4 font-medium text-neutral-900">新規ユーザー登録</h3>
+      <h3 className="mb-4 font-medium text-neutral-900">新規コンテンツ管理者登録</h3>
       <div className="space-y-3">
         <div>
           <label className="mb-1 block text-sm font-medium text-neutral-700">
