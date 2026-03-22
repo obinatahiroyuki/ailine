@@ -8,6 +8,7 @@ import { isSystemAdmin } from "@/lib/auth";
 import { UserRoleForm } from "./user-role-form";
 import { CreateUserForm } from "./create-user-form";
 import { DeleteUserButton } from "./delete-user-button";
+import { PasswordResetButton } from "./password-reset-button";
 import { BillingExemptCell } from "./billing-exempt-cell";
 import { BillingExemptBulkActions } from "./billing-exempt-bulk-actions";
 
@@ -109,18 +110,24 @@ export default async function UsersPage() {
                   />
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <DeleteUserButton
-                    userId={u.id}
-                    isSelf={u.id === session.user?.id}
-                    isSystemAdmin={
-                      u.roles.includes("system_admin")
-                    }
-                    systemAdminCount={
-                      usersWithRoles.filter((x) =>
-                        x.roles.includes("system_admin")
-                      ).length
-                    }
-                  />
+                  <div className="flex items-center justify-end gap-3">
+                    <PasswordResetButton
+                      userId={u.id}
+                      userEmail={u.email}
+                    />
+                    <DeleteUserButton
+                      userId={u.id}
+                      isSelf={u.id === session.user?.id}
+                      isSystemAdmin={
+                        u.roles.includes("system_admin")
+                      }
+                      systemAdminCount={
+                        usersWithRoles.filter((x) =>
+                          x.roles.includes("system_admin")
+                        ).length
+                      }
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

@@ -180,6 +180,88 @@ export async function setAllUsersBillingExempt(
   }
 }
 
+export async function resetUserPassword(
+  targetUserId: string,
+  newPassword: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+  if (!isSystemAdmin(session)) return { error: "権限がありません" };
+
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "パスワードは8文字以上で入力してください" };
+  }
+
+  const [targetUser] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, targetUserId));
+  if (!targetUser) return { error: "ユーザーが見つかりません" };
+
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db
+      .update(users)
+      .set({ password: passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, targetUserId));
+
+    await logAudit({
+      userId: session.user.id,
+      action: "user.password_reset",
+      resource: "user",
+      resourceId: targetUserId,
+      details: { targetEmail: targetUser.email },
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "パスワードの変更に失敗しました" };
+  }
+}
+
+export async function changeOwnPassword(
+  currentPassword: string,
+  newPassword: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "新しいパスワードは8文字以上で入力してください" };
+  }
+
+  const [user] = await db
+    .select({ id: users.id, password: users.password })
+    .from(users)
+    .where(eq(users.id, session.user.id));
+
+  if (!user) return { error: "ユーザーが見つかりません" };
+  if (!user.password) {
+    return {
+      error: "メール・パスワードでログインしていません。Googleでログイン中の場合は、システム管理者にパスワードを設定してもらってください。",
+    };
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.password);
+  if (!valid) return { error: "現在のパスワードが正しくありません" };
+
+  try {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db
+      .update(users)
+      .set({ password: passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, session.user.id));
+
+    revalidatePath("/admin/account");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "パスワードの変更に失敗しました" };
+  }
+}
+
 export async function deleteUser(userId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "ログインが必要です" };

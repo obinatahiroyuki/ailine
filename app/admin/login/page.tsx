@@ -84,6 +84,9 @@ function LoginButtons() {
           {showCredentialError && (
             <p className="text-sm text-red-600">メールアドレスまたはパスワードが正しくありません</p>
           )}
+          <p className="text-xs text-neutral-500">
+            パスワードを忘れた場合は、システム管理者にパスワードのリセットを依頼してください。
+          </p>
           <button
             type="submit"
             disabled={isLoading}

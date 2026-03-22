@@ -32,6 +32,9 @@ export default async function AdminDashboardLayout({
               <Link href="/admin/channels" className="text-neutral-500 hover:text-neutral-900">
                 LINEチャネル
               </Link>
+              <Link href="/admin/account" className="text-neutral-500 hover:text-neutral-900">
+                アカウント
+              </Link>
               {systemAdmin && (
                 <>
                   <Link href="/admin/users" className="text-neutral-500 hover:text-neutral-900">
