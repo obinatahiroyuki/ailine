@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { uploadDocument, deleteDocument } from "./documents-actions";
+import { useRouter } from "next/navigation";
+import { deleteDocument } from "./documents-actions";
 
 const MAX_KNOWLEDGE_CHARS = 50_000;
+const UPLOAD_PROGRESS_MAX = 90; // アップロード完了までは90%まで表示
 
 export function DocumentsSection({
   lineChannelId,
@@ -15,23 +17,81 @@ export function DocumentsSection({
   totalChars: number;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const router = useRouter();
 
-  async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
+  const isUploading = uploadProgress !== null;
+
+  function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStatus("送信中...");
 
-    const formData = new FormData(e.currentTarget);
-    const result = await uploadDocument(lineChannelId, formData);
-    setIsUploading(false);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const file = formData.get("file") as File;
 
-    if (result.error) {
-      setError(result.error);
-    } else {
-      (e.target as HTMLFormElement).reset();
+    if (!file || file.size === 0) {
+      setError("ファイルを選択してください");
+      setUploadProgress(null);
+      return;
     }
+
+    const xhr = new XMLHttpRequest();
+    const url = `/api/admin/channels/${lineChannelId}/documents`;
+
+    xhr.upload.addEventListener("progress", (ev) => {
+      if (ev.lengthComputable) {
+        const pct = Math.round((ev.loaded / ev.total) * UPLOAD_PROGRESS_MAX);
+        setUploadProgress(pct);
+      }
+    });
+
+    xhr.upload.addEventListener("load", () => {
+      setUploadStatus("処理中...");
+      setUploadProgress(UPLOAD_PROGRESS_MAX);
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadProgress(100);
+        setUploadStatus("完了");
+        form.reset();
+        setTimeout(() => {
+          setUploadProgress(null);
+          setUploadStatus("");
+          router.refresh(); // 一覧を更新
+        }, 500);
+      } else {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          setError(res.error ?? "アップロードに失敗しました");
+        } catch {
+          setError("アップロードに失敗しました");
+        }
+        setUploadProgress(null);
+        setUploadStatus("");
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      setError("ネットワークエラーが発生しました");
+      setUploadProgress(null);
+      setUploadStatus("");
+    });
+
+    xhr.addEventListener("abort", () => {
+      setUploadProgress(null);
+      setUploadStatus("");
+    });
+
+    xhr.open("POST", url);
+    xhr.send(formData);
+
+    setUploadStatus("送信中...");
   }
 
   async function handleDelete(documentId: string) {
@@ -53,26 +113,43 @@ export function DocumentsSection({
         PDFやテキストファイルをアップロードすると、AIの応答時に参照されます。マニュアルやFAQなどを登録して、GPTsのように専門的な回答をさせることができます。
       </p>
 
-      <form onSubmit={handleUpload} className="mb-6 flex flex-wrap items-end gap-4">
-        <div className="flex-1 min-w-[200px]">
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
-            ファイルを追加
-          </label>
-          <input
-            name="file"
-            type="file"
-            accept=".pdf,.txt,.md,.csv,.json"
-            className="w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
-            required
-          />
+      <form onSubmit={handleUpload} className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="mb-1 block text-sm font-medium text-neutral-700">
+              ファイルを追加
+            </label>
+            <input
+              name="file"
+              type="file"
+              accept=".pdf,.txt,.md,.csv,.json"
+              className="w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-neutral-700 hover:file:bg-neutral-200"
+              required
+              disabled={isUploading}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isUploading}
+            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          >
+            {isUploading ? `${uploadProgress}%` : "アップロード"}
+          </button>
         </div>
-        <button
-          type="submit"
-          disabled={isUploading}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-        >
-          {isUploading ? "アップロード中..." : "アップロード"}
-        </button>
+        {isUploading && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-neutral-600">{uploadStatus}</span>
+              <span className="font-medium text-neutral-900">{uploadProgress}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+              <div
+                className="h-full rounded-full bg-neutral-900 transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </form>
 
       <p className="mb-4 text-xs text-neutral-500">
