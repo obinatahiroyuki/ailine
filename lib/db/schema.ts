@@ -140,6 +140,22 @@ export const aiProviders = sqliteTable("ai_providers", {
     .$defaultFn(() => new Date()),
 });
 
+// チャネルに紐づく知識ベースドキュメント（PDF・テキスト）
+export const channelDocuments = sqliteTable("channel_documents", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(uuid),
+  lineChannelId: text("line_channel_id")
+    .notNull()
+    .references(() => lineChannels.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  contentType: text("content_type").notNull(), // 'application/pdf' | 'text/plain' | ...
+  content: text("content").notNull(), // 抽出したテキスト
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // システムプロンプト（LINEチャネルに紐付け）
 export const prompts = sqliteTable("prompts", {
   id: text("id")

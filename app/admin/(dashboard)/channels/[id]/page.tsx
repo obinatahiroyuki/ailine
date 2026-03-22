@@ -5,16 +5,18 @@ import {
   lineChannelContentAdmins,
   aiProviders,
   prompts,
+  channelDocuments,
   users,
   subscriptions,
   plans,
   userRoles,
 } from "@/lib/db/schema";
-import { eq, and, isNotNull, ne } from "drizzle-orm";
+import { eq, and, isNotNull, ne, desc } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiProviderForm } from "./ai-form";
 import { PromptForm } from "./prompt-form";
+import { DocumentsSection } from "./documents-section";
 import { isSystemAdmin } from "@/lib/auth";
 import { ChannelAdminsSection } from "./channel-admins";
 import { SubscriptionSection } from "./subscription-section";
@@ -88,6 +90,17 @@ export default async function ChannelDetailPage({
     .select()
     .from(prompts)
     .where(eq(prompts.lineChannelId, id));
+
+  const documents = await db
+    .select({
+      id: channelDocuments.id,
+      filename: channelDocuments.filename,
+      contentType: channelDocuments.contentType,
+      createdAt: channelDocuments.createdAt,
+    })
+    .from(channelDocuments)
+    .where(eq(channelDocuments.lineChannelId, id))
+    .orderBy(desc(channelDocuments.createdAt));
 
   const billingEnabled = await getBillingEnabled();
 
@@ -189,6 +202,11 @@ export default async function ChannelDetailPage({
         <AiProviderForm
           lineChannelId={id}
           existing={aiProvider ?? null}
+        />
+
+        <DocumentsSection
+          lineChannelId={id}
+          documents={documents}
         />
 
         {prompt && (
