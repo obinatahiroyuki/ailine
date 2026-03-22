@@ -10,6 +10,11 @@ export const processLineMessage = inngest.createFunction(
     id: "process-line-message",
     retries: 3,
     triggers: [{ event: "line/message.received" }],
+    // 同一ユーザーのメッセージを直列化し、会話履歴が正しく参照されるようにする
+    concurrency: {
+      limit: 1,
+      key: 'event.data.channelId + "-" + event.data.lineUserId',
+    },
   },
   async ({ event }) => {
     const { channelId, lineUserId, text, replyToken } = event.data;
