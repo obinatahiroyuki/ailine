@@ -12,6 +12,7 @@ import {
   userRoles,
   channelUserSubscriptions,
   conversations,
+  apiUsage,
 } from "@/lib/db/schema";
 import { eq, and, isNotNull, ne, desc, sql, inArray } from "drizzle-orm";
 import Link from "next/link";
@@ -23,6 +24,8 @@ import { isSystemAdmin } from "@/lib/auth";
 import { ChannelAdminsSection } from "./channel-admins";
 import { SubscriptionSection } from "./subscription-section";
 import { UserPaymentSection } from "./user-payment-section";
+import { LineUsersSection } from "./line-users-section";
+import { getLineUserProfile } from "@/lib/line/profile";
 import { getBillingEnabled } from "@/lib/billing";
 import { ROLE_SYSTEM_ADMIN } from "@/lib/auth";
 
@@ -179,19 +182,24 @@ export default async function ChannelDetailPage({
     .select({
       lineUserId: conversations.lineUserId,
       lastMessageAt: conversations.lastMessageAt,
+      createdAt: conversations.createdAt,
     })
     .from(conversations)
     .where(eq(conversations.lineChannelId, id));
 
   const lineUserIdsList = [...new Set(convosWithUser.map((c) => c.lineUserId))];
-  const lastMessageByUser = new Map(
-    convosWithUser
-      .sort(
-        (a, b) =>
-          (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)
-      )
-      .map((c) => [c.lineUserId, c.lastMessageAt])
-  );
+  const lastMessageByUser = new Map<string, Date | null>();
+  const firstJoinedByUser = new Map<string, Date>();
+  for (const c of convosWithUser) {
+    const existingLast = lastMessageByUser.get(c.lineUserId);
+    if (!existingLast || (c.lastMessageAt && c.lastMessageAt > existingLast)) {
+      lastMessageByUser.set(c.lineUserId, c.lastMessageAt);
+    }
+    const existingFirst = firstJoinedByUser.get(c.lineUserId);
+    if (!existingFirst || c.createdAt < existingFirst) {
+      firstJoinedByUser.set(c.lineUserId, c.createdAt);
+    }
+  }
 
   const userSubs =
     lineUserIdsList.length > 0
@@ -211,18 +219,62 @@ export default async function ChannelDetailPage({
       : [];
   const userSubsMap = new Map(userSubs.map((s) => [s.lineUserId, s]));
 
+  const tokenUsage =
+    lineUserIdsList.length > 0
+      ? await db
+          .select({
+            lineUserId: apiUsage.lineUserId,
+            inputTokens: sql<number>`coalesce(sum(${apiUsage.inputTokens}), 0)`,
+            outputTokens: sql<number>`coalesce(sum(${apiUsage.outputTokens}), 0)`,
+          })
+          .from(apiUsage)
+          .where(
+            and(
+              eq(apiUsage.lineChannelId, id),
+              inArray(apiUsage.lineUserId, lineUserIdsList),
+              isNotNull(apiUsage.lineUserId)
+            )
+          )
+          .groupBy(apiUsage.lineUserId)
+      : [];
+  const tokenMap = new Map(
+    tokenUsage.map((t) => [
+      t.lineUserId ?? "",
+      {
+        input: t.inputTokens,
+        output: t.outputTokens,
+      },
+    ])
+  );
+
   const allPlans = await db.select().from(plans);
   const planMap = new Map(allPlans.map((p) => [p.id, p]));
 
-  const lineUsers = lineUserIdsList.map((lineUserId) => {
-    const sub = userSubsMap.get(lineUserId);
-    return {
-      lineUserId,
-      status: sub?.status ?? null,
-      planName: sub?.planId ? planMap.get(sub.planId)?.name ?? null : null,
-      lastMessageAt: lastMessageByUser.get(lineUserId) ?? null,
-    };
-  });
+  const profileMap = new Map<string, string | null>();
+  for (const lineUserId of lineUserIdsList.slice(0, 50)) {
+    const profile = await getLineUserProfile(ch.accessToken, lineUserId);
+    profileMap.set(lineUserId, profile?.displayName ?? null);
+  }
+
+  const lineUsersForList = lineUserIdsList
+    .map((lineUserId) => {
+      const sub = userSubsMap.get(lineUserId);
+      const tokens = tokenMap.get(lineUserId);
+      return {
+        lineUserId,
+        displayName: profileMap.get(lineUserId) ?? null,
+        joinedAt: firstJoinedByUser.get(lineUserId) ?? null,
+        lastMessageAt: lastMessageByUser.get(lineUserId) ?? null,
+        billingStatus: sub?.status ?? "none",
+        planName: sub?.planId ? planMap.get(sub.planId)?.name ?? null : null,
+        totalInputTokens: tokens?.input ?? 0,
+        totalOutputTokens: tokens?.output ?? 0,
+      };
+    })
+    .sort(
+      (a, b) =>
+        (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)
+    );
 
   const baseUrl = getWebhookBaseUrl();
   const webhookUrl = `${baseUrl}/api/webhook/line/${ch.channelId}`;
@@ -328,13 +380,17 @@ export default async function ChannelDetailPage({
           plans={plansWithStripe}
         />
 
+        <LineUsersSection
+          users={lineUsersForList}
+          userPaymentRequired={ch.userPaymentRequired ?? false}
+        />
+
         <UserPaymentSection
           lineChannelId={id}
           billingEnabled={billingEnabled}
           userPaymentRequired={ch.userPaymentRequired ?? false}
           userPlanId={ch.userPlanId}
           userPlans={userPlansWithStripe}
-          users={lineUsers}
         />
 
         {systemAdmin && (

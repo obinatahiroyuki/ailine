@@ -204,6 +204,7 @@ export async function handleLineMessage(
         try {
           await db.insert(apiUsage).values({
             lineChannelId: channel.id,
+            lineUserId: lineUserId,
             provider: aiProvider.provider,
             model: SUMMARY_MODELS[aiProvider.provider] ?? "gpt-4o-mini",
             inputTokens: summaryResult.usage.inputTokens,
@@ -277,6 +278,7 @@ export async function handleLineMessage(
     try {
       await db.insert(apiUsage).values({
         lineChannelId: channel.id,
+        lineUserId: lineUserId,
         provider: aiProvider.provider,
         model: aiProvider.model,
         inputTokens: responseResult.usage.inputTokens,

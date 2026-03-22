@@ -9,12 +9,6 @@ type Props = {
   userPaymentRequired: boolean;
   userPlanId: string | null;
   userPlans: { id: string; name: string; monthlyPrice: number }[];
-  users: {
-    lineUserId: string;
-    status: string | null;
-    planName: string | null;
-    lastMessageAt: Date | null;
-  }[];
 };
 
 export function UserPaymentSection({
@@ -23,7 +17,6 @@ export function UserPaymentSection({
   userPaymentRequired,
   userPlanId,
   userPlans,
-  users,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const [required, setRequired] = useState(userPaymentRequired);
@@ -96,51 +89,9 @@ export function UserPaymentSection({
           {isLoading ? "保存中..." : "保存"}
         </button>
       </div>
-
-      {users.length > 0 && (
-        <div className="mt-6">
-          <h3 className="mb-2 text-sm font-medium text-neutral-700">
-            LINEユーザー一覧（{users.length}人）
-          </h3>
-          <div className="max-h-60 overflow-auto rounded border border-neutral-200">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-neutral-50">
-                <tr>
-                  <th className="px-3 py-2">LINE User ID</th>
-                  <th className="px-3 py-2">課金状態</th>
-                  <th className="px-3 py-2">最終利用</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.lineUserId} className="border-t border-neutral-100">
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {u.lineUserId.slice(0, 12)}...
-                    </td>
-                    <td className="px-3 py-2">
-                      {u.status === "active" ? (
-                        <span className="text-green-600">課金済み</span>
-                      ) : u.status === "past_due" ? (
-                        <span className="text-amber-600">決済失敗</span>
-                      ) : (
-                        <span className="text-neutral-500">未課金</span>
-                      )}
-                      {u.planName && (
-                        <span className="ml-1 text-xs">({u.planName})</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-neutral-500">
-                      {u.lastMessageAt
-                        ? new Date(u.lastMessageAt).toLocaleDateString("ja-JP")
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <p className="mt-2 text-xs text-neutral-500">
+        ユーザーごとの課金状態は「LINE公式アカウントのユーザー一覧」で確認できます。
+      </p>
     </div>
   );
 }

@@ -252,6 +252,7 @@ export const apiUsage = sqliteTable("api_usage", {
   lineChannelId: text("line_channel_id")
     .notNull()
     .references(() => lineChannels.id, { onDelete: "cascade" }),
+  lineUserId: text("line_user_id"), // LINEユーザー別トークン集計用（nullは従来レコード）
   provider: text("provider").notNull(),
   model: text("model").notNull(),
   inputTokens: integer("input_tokens").notNull().default(0),
