@@ -21,14 +21,18 @@ import { SubscriptionSection } from "./subscription-section";
 import { getBillingEnabled } from "@/lib/billing";
 import { ROLE_SYSTEM_ADMIN } from "@/lib/auth";
 
+/** Webhook URL のベース。本番は NEXTAUTH_URL を優先（VERCEL_URL はプレビューでも変わるため） */
 function getWebhookBaseUrl() {
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL.replace(/\/$/, "");
+  }
+  if (process.env.AUTH_URL) {
+    return process.env.AUTH_URL.replace(/\/$/, "");
+  }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  if (process.env.AUTH_URL) {
-    return process.env.AUTH_URL;
-  }
-  return process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  return "http://localhost:3000";
 }
 
 export default async function ChannelDetailPage({

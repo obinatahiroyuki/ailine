@@ -36,6 +36,12 @@ export async function POST(
   }
 
   const rawBody = await request.text();
+
+  // LINE の Webhook URL 検証は空 body や events:[] で来る。署名がダミーのため必ず 200 を返す
+  if (!rawBody || rawBody.trim() === "") {
+    return NextResponse.json({ ok: true });
+  }
+
   let body: WebhookBody;
   try {
     body = JSON.parse(rawBody) as WebhookBody;
@@ -46,7 +52,6 @@ export async function POST(
     );
   }
 
-  // LINE の Webhook URL 検証（events が空）は署名がダミーのため 200 を返す
   if (!body.events || !Array.isArray(body.events) || body.events.length === 0) {
     return NextResponse.json({ ok: true });
   }

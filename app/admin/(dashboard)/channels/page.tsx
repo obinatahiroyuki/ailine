@@ -9,14 +9,18 @@ import Link from "next/link";
 import { CreateChannelForm } from "./create-form";
 import { isSystemAdmin } from "@/lib/auth";
 
+/** Webhook URL のベース。本番は NEXTAUTH_URL を優先（VERCEL_URL はプレビューでも変わるため） */
 function getWebhookBaseUrl() {
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL.replace(/\/$/, "");
+  }
+  if (process.env.AUTH_URL) {
+    return process.env.AUTH_URL.replace(/\/$/, "");
+  }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
-  if (process.env.AUTH_URL) {
-    return process.env.AUTH_URL;
-  }
-  return process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  return "http://localhost:3000";
 }
 
 export default async function ChannelsPage() {
@@ -71,7 +75,7 @@ export default async function ChannelsPage() {
           Webhook URL（LINE Developers に登録）
         </h2>
         <p className="mb-3 text-sm text-amber-800">
-          チャネル登録後、各チャネルの詳細ページ（「設定」リンク）で、そのチャネル専用の Webhook URL を確認できます。
+          LINE Developers の Webhook 設定では、下記の<strong>本番URL</strong>を必ず使用してください。プレビュー用の URL ではメッセージが届きません。
         </p>
         <p className="mb-2 text-xs font-medium text-amber-900">URL形式</p>
         <code className="block break-all rounded bg-amber-100 px-3 py-3 text-sm text-amber-900">

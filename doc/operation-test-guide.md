@@ -125,7 +125,7 @@ npm run db:seed
 |------|----------|
 | LINE に返信がこない | Inngest の Sync が有効か、`INNGEST_SIGNING_KEY` / `INNGEST_EVENT_KEY` が正しいか |
 | 「サブスクリプションの設定が必要」 | 課金は無効のままで問題ない。システム管理者＝コンテンツ管理者の場合は課金免除になる |
-| Webhook 検証失敗 | Webhook URL が `https://ailine-ten.vercel.app/api/webhook/line/[チャネルID]` の形式か、チャネルIDが一致しているか |
+| Webhook 検証失敗（401） | 1) Webhook URL の形式を確認。2) **Vercel の Deployment Protection** が有効だと API が 401 を返す。Settings → Deployment Protection で **Protection Bypass for Automation** を有効化するか、保護を無効化する。3) 最新コードがデプロイされているか確認 |
 | 認証エラー | `NEXTAUTH_URL` が `https://ailine-ten.vercel.app` になっているか、Google OAuth のリダイレクト URI に登録済みか |
 | AI が応答しない | AI API 設定で API キーとモデルが正しく保存されているか、利用枠に余裕があるか |
 
