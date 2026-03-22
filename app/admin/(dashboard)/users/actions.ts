@@ -235,6 +235,7 @@ export async function updateOwnName(name: string) {
       .where(eq(users.id, session.user.id));
 
     revalidatePath("/admin/account");
+    revalidatePath("/admin/settings");
     return { success: true };
   } catch (err) {
     console.error(err);

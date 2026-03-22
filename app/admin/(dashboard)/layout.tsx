@@ -35,6 +35,9 @@ export default async function AdminDashboardLayout({
               <Link href="/admin/account" className="text-neutral-500 hover:text-neutral-900">
                 アカウント
               </Link>
+              <Link href="/admin/settings" className="text-neutral-500 hover:text-neutral-900">
+                設定
+              </Link>
               {systemAdmin && (
                 <>
                   <Link href="/admin/users" className="text-neutral-500 hover:text-neutral-900">
@@ -42,9 +45,6 @@ export default async function AdminDashboardLayout({
                   </Link>
                   <Link href="/admin/audit" className="text-neutral-500 hover:text-neutral-900">
                     監査ログ
-                  </Link>
-                  <Link href="/admin/settings" className="text-neutral-500 hover:text-neutral-900">
-                    設定
                   </Link>
                 </>
               )}

@@ -4,7 +4,6 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChangeNameForm } from "./change-name-form";
 import { ChangePasswordForm } from "./change-password-form";
 
 export default async function AccountPage() {
@@ -12,11 +11,7 @@ export default async function AccountPage() {
   if (!session?.user?.id) redirect("/admin/login");
 
   const [user] = await db
-    .select({
-      hasPassword: users.password,
-      name: users.name,
-      email: users.email,
-    })
+    .select({ hasPassword: users.password })
     .from(users)
     .where(eq(users.id, session.user.id));
 
@@ -35,16 +30,6 @@ export default async function AccountPage() {
       </div>
 
       <div className="space-y-6">
-        <div className="rounded-lg border border-neutral-200 bg-white p-6">
-          <h2 className="mb-4 font-medium text-neutral-900">
-            名前を変更
-          </h2>
-          <ChangeNameForm
-            initialName={user?.name ?? ""}
-            email={user?.email ?? ""}
-          />
-        </div>
-
         <div className="rounded-lg border border-neutral-200 bg-white p-6">
           <h2 className="mb-4 font-medium text-neutral-900">
             パスワードを変更
