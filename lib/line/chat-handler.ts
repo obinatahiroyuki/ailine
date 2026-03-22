@@ -7,7 +7,7 @@ import {
   messages,
   apiUsage,
 } from "@/lib/db/schema";
-import { eq, and, inArray, gte } from "drizzle-orm";
+import { eq, and, inArray, gte, desc } from "drizzle-orm";
 import { generateResponse, generateSummary } from "@/lib/ai/providers";
 import { SUMMARY_MODELS } from "@/lib/ai/models";
 import { replyToLine } from "./reply";
@@ -83,7 +83,8 @@ export async function handleLineMessage(
     return;
   }
 
-  let [conversation] = await db
+  // 同一ユーザーに複数会話がある場合、最も直近のものを取得（lastMessageAt 降順、なければ createdAt 降順）
+  const existingConversations = await db
     .select()
     .from(conversations)
     .where(
@@ -91,7 +92,12 @@ export async function handleLineMessage(
         eq(conversations.lineChannelId, channel.id),
         eq(conversations.lineUserId, lineUserId)
       )
+    )
+    .orderBy(
+      desc(conversations.lastMessageAt),
+      desc(conversations.createdAt)
     );
+  let conversation = existingConversations[0];
 
   if (!conversation) {
     const [newConv] = await db
