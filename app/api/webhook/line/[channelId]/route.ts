@@ -36,8 +36,23 @@ export async function POST(
   }
 
   const rawBody = await request.text();
-  const signature = getLineSignature(request);
+  let body: WebhookBody;
+  try {
+    body = JSON.parse(rawBody) as WebhookBody;
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400 }
+    );
+  }
 
+  // LINE の Webhook URL 検証（events が空）は署名がダミーのため 200 を返す
+  if (!body.events || !Array.isArray(body.events) || body.events.length === 0) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // 本番の Webhook イベントは署名検証を行う
+  const signature = getLineSignature(request);
   if (!signature) {
     return NextResponse.json(
       { error: "Missing x-line-signature header" },
@@ -66,20 +81,6 @@ export async function POST(
       { error: "Invalid signature" },
       { status: 401 }
     );
-  }
-
-  let body: WebhookBody;
-  try {
-    body = JSON.parse(rawBody) as WebhookBody;
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400 }
-    );
-  }
-
-  if (!body.events || !Array.isArray(body.events)) {
-    return NextResponse.json({ ok: true });
   }
 
   const eventsToProcess: { channelId: string; lineUserId: string; text: string; replyToken: string }[] = [];
