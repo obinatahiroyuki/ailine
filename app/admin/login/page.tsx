@@ -129,6 +129,13 @@ function LoginButtons() {
             Google でログイン
           </button>
         </div>
+
+        <p className="mt-6 text-center text-sm text-neutral-500">
+          コンテンツ管理者の新規登録は{" "}
+          <a href="/register" className="text-neutral-900 underline hover:no-underline">
+            こちら
+          </a>
+        </p>
       </div>
     </div>
   );

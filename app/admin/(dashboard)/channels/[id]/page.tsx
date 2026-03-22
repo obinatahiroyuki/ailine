@@ -10,8 +10,10 @@ import {
   subscriptions,
   plans,
   userRoles,
+  channelUserSubscriptions,
+  conversations,
 } from "@/lib/db/schema";
-import { eq, and, isNotNull, ne, desc, sql } from "drizzle-orm";
+import { eq, and, isNotNull, ne, desc, sql, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiProviderForm } from "./ai-form";
@@ -20,6 +22,7 @@ import { DocumentsSection } from "./documents-section";
 import { isSystemAdmin } from "@/lib/auth";
 import { ChannelAdminsSection } from "./channel-admins";
 import { SubscriptionSection } from "./subscription-section";
+import { UserPaymentSection } from "./user-payment-section";
 import { getBillingEnabled } from "@/lib/billing";
 import { ROLE_SYSTEM_ADMIN } from "@/lib/auth";
 
@@ -149,7 +152,77 @@ export default async function ChannelDetailPage({
       monthlyPrice: plans.monthlyPrice,
     })
     .from(plans)
-    .where(and(isNotNull(plans.stripePriceId), ne(plans.stripePriceId, "")));
+    .where(
+      and(
+        eq(plans.planType, "channel"),
+        isNotNull(plans.stripePriceId),
+        ne(plans.stripePriceId, "")
+      )
+    );
+
+  const userPlansWithStripe = await db
+    .select({
+      id: plans.id,
+      name: plans.name,
+      monthlyPrice: plans.monthlyPrice,
+    })
+    .from(plans)
+    .where(
+      and(
+        eq(plans.planType, "user"),
+        isNotNull(plans.stripePriceId),
+        ne(plans.stripePriceId, "")
+      )
+    );
+
+  const convosWithUser = await db
+    .select({
+      lineUserId: conversations.lineUserId,
+      lastMessageAt: conversations.lastMessageAt,
+    })
+    .from(conversations)
+    .where(eq(conversations.lineChannelId, id));
+
+  const lineUserIdsList = [...new Set(convosWithUser.map((c) => c.lineUserId))];
+  const lastMessageByUser = new Map(
+    convosWithUser
+      .sort(
+        (a, b) =>
+          (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0)
+      )
+      .map((c) => [c.lineUserId, c.lastMessageAt])
+  );
+
+  const userSubs =
+    lineUserIdsList.length > 0
+      ? await db
+          .select({
+            lineUserId: channelUserSubscriptions.lineUserId,
+            status: channelUserSubscriptions.status,
+            planId: channelUserSubscriptions.planId,
+          })
+          .from(channelUserSubscriptions)
+          .where(
+            and(
+              eq(channelUserSubscriptions.lineChannelId, id),
+              inArray(channelUserSubscriptions.lineUserId, lineUserIdsList)
+            )
+          )
+      : [];
+  const userSubsMap = new Map(userSubs.map((s) => [s.lineUserId, s]));
+
+  const allPlans = await db.select().from(plans);
+  const planMap = new Map(allPlans.map((p) => [p.id, p]));
+
+  const lineUsers = lineUserIdsList.map((lineUserId) => {
+    const sub = userSubsMap.get(lineUserId);
+    return {
+      lineUserId,
+      status: sub?.status ?? null,
+      planName: sub?.planId ? planMap.get(sub.planId)?.name ?? null : null,
+      lastMessageAt: lastMessageByUser.get(lineUserId) ?? null,
+    };
+  });
 
   const baseUrl = getWebhookBaseUrl();
   const webhookUrl = `${baseUrl}/api/webhook/line/${ch.channelId}`;
@@ -253,6 +326,15 @@ export default async function ChannelDetailPage({
               : null
           }
           plans={plansWithStripe}
+        />
+
+        <UserPaymentSection
+          lineChannelId={id}
+          billingEnabled={billingEnabled}
+          userPaymentRequired={ch.userPaymentRequired ?? false}
+          userPlanId={ch.userPlanId}
+          userPlans={userPlansWithStripe}
+          users={lineUsers}
         />
 
         {systemAdmin && (

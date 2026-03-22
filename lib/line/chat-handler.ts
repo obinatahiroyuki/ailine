@@ -13,6 +13,7 @@ import { generateResponse, generateSummary } from "@/lib/ai/providers";
 import { SUMMARY_MODELS } from "@/lib/ai/models";
 import { replyToLine } from "./reply";
 import { isChannelBillingOk } from "@/lib/billing";
+import { isUserSubscriptionActive } from "@/lib/user-billing";
 
 type AiProviderType = "openai" | "anthropic" | "google";
 
@@ -60,6 +61,23 @@ export async function handleLineMessage(
       "申し訳ありません。サブスクリプションの設定が必要です。管理画面で課金設定をご確認ください。"
     );
     return;
+  }
+
+  const baseUrl =
+    process.env.NEXTAUTH_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const userPaymentUrl = `${baseUrl}/user-payment?channelId=${encodeURIComponent(channel.id)}&lineUserId=${encodeURIComponent(lineUserId)}`;
+
+  if (channel.userPaymentRequired && channel.userPlanId) {
+    const userPaid = await isUserSubscriptionActive(channel.id, lineUserId);
+    if (!userPaid) {
+      await replyToLine(
+        channel.accessToken,
+        replyToken,
+        `このチャットボットを利用するには有料プランへのご登録が必要です。\n\n下のリンクからお支払い手続きをお願いします。\n${userPaymentUrl}\n\nお支払い完了後、LINEでメッセージを送信いただくとご利用いただけます。`
+      );
+      return;
+    }
   }
 
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000);

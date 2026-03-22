@@ -81,6 +81,9 @@ async function seed() {
   const existingPlans = await db.select().from(plans);
   const standardPriceId = process.env.STRIPE_PRICE_ID_STANDARD || null;
   const proPriceId = process.env.STRIPE_PRICE_ID_PRO || null;
+  const userStandardPriceId =
+    process.env.STRIPE_PRICE_ID_USER_STANDARD || null;
+  const userProPriceId = process.env.STRIPE_PRICE_ID_USER_PRO || null;
 
   if (existingPlans.length === 0) {
     await db.insert(plans).values([
@@ -89,19 +92,43 @@ async function seed() {
         monthlyPrice: 3000,
         apiUsageLimitRatio: 50,
         stripePriceId: standardPriceId,
+        planType: "channel",
       },
       {
         name: "プロ",
         monthlyPrice: 10000,
         apiUsageLimitRatio: 50,
         stripePriceId: proPriceId,
+        planType: "channel",
+      },
+      {
+        name: "ユーザー向け ライト",
+        monthlyPrice: 500,
+        apiUsageLimitRatio: 0,
+        stripePriceId: userStandardPriceId,
+        planType: "user",
+      },
+      {
+        name: "ユーザー向け スタンダード",
+        monthlyPrice: 1000,
+        apiUsageLimitRatio: 0,
+        stripePriceId: userProPriceId,
+        planType: "user",
       },
     ]);
     console.log("✅ プランを投入しました");
   } else {
     for (const p of existingPlans) {
       const priceId =
-        p.name === "スタンダード" ? standardPriceId : p.name === "プロ" ? proPriceId : null;
+        p.planType === "user"
+          ? p.name.includes("ライト")
+            ? userStandardPriceId
+            : userProPriceId
+          : p.name === "スタンダード"
+            ? standardPriceId
+            : p.name === "プロ"
+              ? proPriceId
+              : null;
       if (priceId) {
         await db
           .update(plans)
@@ -109,7 +136,26 @@ async function seed() {
           .where(eq(plans.id, p.id));
       }
     }
-    if (standardPriceId || proPriceId) {
+    const userPlans = existingPlans.filter((p) => p.planType === "user");
+    if (userPlans.length === 0) {
+      await db.insert(plans).values([
+        {
+          name: "ユーザー向け ライト",
+          monthlyPrice: 500,
+          apiUsageLimitRatio: 0,
+          stripePriceId: userStandardPriceId,
+          planType: "user",
+        },
+        {
+          name: "ユーザー向け スタンダード",
+          monthlyPrice: 1000,
+          apiUsageLimitRatio: 0,
+          stripePriceId: userProPriceId,
+          planType: "user",
+        },
+      ]);
+      console.log("✅ ユーザー向けプランを追加しました");
+    } else if (standardPriceId || proPriceId) {
       console.log("✅ プランの Stripe Price ID を更新しました");
     } else {
       console.log("⏭️ プランは既に存在します");

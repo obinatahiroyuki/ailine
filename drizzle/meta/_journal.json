@@ -29,6 +29,13 @@
       "when": 1774032459876,
       "tag": "0003_skinny_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1774206457247,
+      "tag": "0004_awesome_hobgoblin",
+      "breakpoints": true
     }
   ]
 }

@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { userRoles } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { userRoles, users } from "@/lib/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { isSystemAdmin } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { ROLE_SYSTEM_ADMIN, ROLE_CONTENT_ADMIN } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 export async function assignRole(userId: string, roleId: string, add: boolean) {
   const session = await auth();
@@ -61,5 +62,155 @@ export async function assignRole(userId: string, roleId: string, add: boolean) {
   } catch (err) {
     console.error(err);
     return { error: "ロールの更新に失敗しました" };
+  }
+}
+
+export async function createUser(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+  if (!isSystemAdmin(session)) return { error: "権限がありません" };
+
+  const email = formData.get("email")?.toString()?.trim()?.toLowerCase();
+  const name = formData.get("name")?.toString()?.trim();
+  const password = formData.get("password")?.toString();
+
+  if (!email) return { error: "メールアドレスを入力してください" };
+  if (!password || password.length < 8) {
+    return { error: "パスワードは8文字以上で入力してください" };
+  }
+
+  const [existing] = await db.select().from(users).where(eq(users.email, email));
+  if (existing) return { error: "このメールアドレスは既に登録されています" };
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [user] = await db
+      .insert(users)
+      .values({
+        email,
+        name: name || null,
+        password: passwordHash,
+      })
+      .returning();
+
+    if (!user) return { error: "ユーザーの作成に失敗しました" };
+
+    await db.insert(userRoles).values({
+      userId: user.id,
+      roleId: ROLE_CONTENT_ADMIN,
+    });
+
+    await logAudit({
+      userId: session.user.id,
+      action: "user.create",
+      resource: "user",
+      resourceId: user.id,
+      details: { email },
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "ユーザーの作成に失敗しました" };
+  }
+}
+
+export async function setUserBillingExempt(
+  userId: string,
+  exempt: boolean
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+  if (!isSystemAdmin(session)) return { error: "権限がありません" };
+
+  try {
+    await db
+      .update(users)
+      .set({ billingExempt: exempt, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    await logAudit({
+      userId: session.user.id,
+      action: "user.billing_exempt_updated",
+      resource: "user",
+      resourceId: userId,
+      details: { exempt },
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "更新に失敗しました" };
+  }
+}
+
+export async function setAllUsersBillingExempt(
+  exempt: boolean,
+  userIds: string[]
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+  if (!isSystemAdmin(session)) return { error: "権限がありません" };
+
+  if (userIds.length === 0) return { success: true };
+
+  try {
+    await db
+      .update(users)
+      .set({
+        billingExempt: exempt,
+        updatedAt: new Date(),
+      })
+      .where(inArray(users.id, userIds));
+
+    await logAudit({
+      userId: session.user.id,
+      action: "users.billing_exempt_bulk",
+      resource: "user",
+      details: { exempt, count: userIds.length },
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "一括更新に失敗しました" };
+  }
+}
+
+export async function deleteUser(userId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+  if (!isSystemAdmin(session)) return { error: "権限がありません" };
+  if (userId === session.user.id) return { error: "自分自身は削除できません" };
+
+  const sysAdmins = await db
+    .select({ userId: userRoles.userId })
+    .from(userRoles)
+    .where(eq(userRoles.roleId, ROLE_SYSTEM_ADMIN));
+
+  const isTargetSystemAdmin = sysAdmins.some((r) => r.userId === userId);
+  if (isTargetSystemAdmin && sysAdmins.length <= 1) {
+    return { error: "最後のシステム管理者は削除できません" };
+  }
+
+  try {
+    await db.delete(users).where(eq(users.id, userId));
+
+    await logAudit({
+      userId: session.user.id,
+      action: "user.delete",
+      resource: "user",
+      resourceId: userId,
+      details: {},
+    });
+
+    revalidatePath("/admin/users");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "ユーザーの削除に失敗しました" };
   }
 }

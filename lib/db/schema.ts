@@ -17,6 +17,7 @@ export const users = sqliteTable("users", {
   image: text("image"),
   password: text("password"), // bcrypt ハッシュ（Credentials ログイン用、OAuth ユーザーは null）
   emailVerified: integer("email_verified", { mode: "timestamp" }),
+  billingExempt: integer("billing_exempt", { mode: "boolean" }).default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -98,6 +99,8 @@ export const lineChannels = sqliteTable("line_channels", {
   channelSecret: text("channel_secret").notNull(),
   accessToken: text("access_token").notNull(),
   tokenExpiresAt: integer("token_expires_at", { mode: "timestamp" }),
+  userPaymentRequired: integer("user_payment_required", { mode: "boolean" }).default(false),
+  userPlanId: text("user_plan_id").references(() => plans.id),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -186,6 +189,7 @@ export const plans = sqliteTable("plans", {
   monthlyPrice: integer("monthly_price").notNull(),
   apiUsageLimitRatio: integer("api_usage_limit_ratio").notNull().default(50), // 50 = 50%
   stripePriceId: text("stripe_price_id"), // Stripe Price ID（課金有効時のみ使用）
+  planType: text("plan_type").notNull().default("channel"), // 'channel'=コンテンツ管理者向け, 'user'=LINEユーザー向け
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -217,6 +221,28 @@ export const subscriptions = sqliteTable("subscriptions", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// LINEユーザー（チャットボット利用者）の課金契約
+export const channelUserSubscriptions = sqliteTable(
+  "channel_user_subscriptions",
+  {
+    lineChannelId: text("line_channel_id")
+      .notNull()
+      .references(() => lineChannels.id, { onDelete: "cascade" }),
+    lineUserId: text("line_user_id").notNull(),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    status: text("status").notNull().default("active"), // 'active' | 'past_due' | 'cancelled'
+    planId: text("plan_id").references(() => plans.id),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [primaryKey({ columns: [t.lineChannelId, t.lineUserId] })]
+);
 
 // API使用量
 export const apiUsage = sqliteTable("api_usage", {

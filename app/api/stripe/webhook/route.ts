@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { subscriptions } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  subscriptions,
+  channelUserSubscriptions,
+} from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import Stripe from "stripe";
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -46,34 +49,86 @@ export async function POST(request: NextRequest) {
           const sub = await stripe.subscriptions.retrieve(
             session.subscription as string
           );
-          const lineChannelId = session.metadata?.lineChannelId ?? sub.metadata?.lineChannelId;
-          const planId = session.metadata?.planId ?? sub.metadata?.planId;
+          const subscriptionType =
+            session.metadata?.subscriptionType ?? sub.metadata?.subscriptionType;
 
-          if (lineChannelId && planId) {
-            const [existing] = await db
-              .select()
-              .from(subscriptions)
-              .where(eq(subscriptions.lineChannelId, lineChannelId));
+          if (subscriptionType === "user") {
+            const lineChannelId =
+              session.metadata?.lineChannelId ?? sub.metadata?.lineChannelId;
+            const lineUserId =
+              session.metadata?.lineUserId ?? sub.metadata?.lineUserId;
+            const planId =
+              session.metadata?.planId ?? sub.metadata?.planId;
 
-            const values = {
-              planId,
-              stripeCustomerId: session.customer as string,
-              stripeSubscriptionId: sub.id,
-              billingStartDate: new Date(),
-              status: "active" as const,
-              updatedAt: new Date(),
-            };
+            if (lineChannelId && lineUserId && planId) {
+              const [existing] = await db
+                .select()
+                .from(channelUserSubscriptions)
+                .where(
+                  and(
+                    eq(channelUserSubscriptions.lineChannelId, lineChannelId),
+                    eq(channelUserSubscriptions.lineUserId, lineUserId)
+                  )
+                );
 
-            if (existing) {
-              await db
-                .update(subscriptions)
-                .set(values)
+              const values = {
+                stripeCustomerId: session.customer as string,
+                stripeSubscriptionId: sub.id,
+                planId,
+                status: "active" as const,
+                updatedAt: new Date(),
+              };
+
+              if (existing) {
+                await db
+                  .update(channelUserSubscriptions)
+                  .set(values)
+                  .where(
+                    and(
+                      eq(channelUserSubscriptions.lineChannelId, lineChannelId),
+                      eq(channelUserSubscriptions.lineUserId, lineUserId)
+                    )
+                  );
+              } else {
+                await db.insert(channelUserSubscriptions).values({
+                  lineChannelId,
+                  lineUserId,
+                  ...values,
+                });
+              }
+            }
+          } else {
+            const lineChannelId =
+              session.metadata?.lineChannelId ?? sub.metadata?.lineChannelId;
+            const planId =
+              session.metadata?.planId ?? sub.metadata?.planId;
+
+            if (lineChannelId && planId) {
+              const [existing] = await db
+                .select()
+                .from(subscriptions)
                 .where(eq(subscriptions.lineChannelId, lineChannelId));
-            } else {
-              await db.insert(subscriptions).values({
-                lineChannelId,
-                ...values,
-              });
+
+              const values = {
+                planId,
+                stripeCustomerId: session.customer as string,
+                stripeSubscriptionId: sub.id,
+                billingStartDate: new Date(),
+                status: "active" as const,
+                updatedAt: new Date(),
+              };
+
+              if (existing) {
+                await db
+                  .update(subscriptions)
+                  .set(values)
+                  .where(eq(subscriptions.lineChannelId, lineChannelId));
+              } else {
+                await db.insert(subscriptions).values({
+                  lineChannelId,
+                  ...values,
+                });
+              }
             }
           }
         }
@@ -83,20 +138,29 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
-        const lineChannelId = sub.metadata?.lineChannelId;
+        const subscriptionType = sub.metadata?.subscriptionType;
+        const status =
+          sub.status === "active"
+            ? "active"
+            : sub.status === "past_due"
+              ? "past_due"
+              : "cancelled";
 
-        if (lineChannelId) {
-          const status =
-            sub.status === "active"
-              ? "active"
-              : sub.status === "past_due"
-                ? "past_due"
-                : "cancelled";
-
+        if (subscriptionType === "user") {
           await db
-            .update(subscriptions)
+            .update(channelUserSubscriptions)
             .set({ status, updatedAt: new Date() })
-            .where(eq(subscriptions.stripeSubscriptionId, sub.id));
+            .where(
+              eq(channelUserSubscriptions.stripeSubscriptionId, sub.id)
+            );
+        } else {
+          const lineChannelId = sub.metadata?.lineChannelId;
+          if (lineChannelId) {
+            await db
+              .update(subscriptions)
+              .set({ status, updatedAt: new Date() })
+              .where(eq(subscriptions.stripeSubscriptionId, sub.id));
+          }
         }
         break;
       }
@@ -109,10 +173,22 @@ export async function POST(request: NextRequest) {
         if (subRef) {
           const subId =
             typeof subRef === "string" ? subRef : subRef.id;
-          await db
-            .update(subscriptions)
-            .set({ status: "past_due", updatedAt: new Date() })
-            .where(eq(subscriptions.stripeSubscriptionId, subId));
+          const sub = await stripe.subscriptions.retrieve(subId);
+          const subscriptionType = sub.metadata?.subscriptionType;
+
+          if (subscriptionType === "user") {
+            await db
+              .update(channelUserSubscriptions)
+              .set({ status: "past_due", updatedAt: new Date() })
+              .where(
+                eq(channelUserSubscriptions.stripeSubscriptionId, subId)
+              );
+          } else {
+            await db
+              .update(subscriptions)
+              .set({ status: "past_due", updatedAt: new Date() })
+              .where(eq(subscriptions.stripeSubscriptionId, subId));
+          }
         }
         break;
       }

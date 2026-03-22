@@ -1,9 +1,16 @@
 import { db } from "@/lib/db";
-import { systemSettings, subscriptions, lineChannelContentAdmins, userRoles } from "@/lib/db/schema";
+import {
+  systemSettings,
+  subscriptions,
+  lineChannelContentAdmins,
+  userRoles,
+  users,
+} from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ROLE_SYSTEM_ADMIN } from "./auth";
 
 const KEY_BILLING_ENABLED = "billing_enabled";
+const KEY_BILLING_EMERGENCY_EXEMPT = "billing_emergency_exempt";
 
 export async function getBillingEnabled(): Promise<boolean> {
   const [row] = await db
@@ -14,20 +21,36 @@ export async function getBillingEnabled(): Promise<boolean> {
 }
 
 export async function setBillingEnabled(enabled: boolean): Promise<void> {
+  await setSystemSetting(KEY_BILLING_ENABLED, enabled);
+}
+
+export async function getBillingEmergencyExempt(): Promise<boolean> {
+  const [row] = await db
+    .select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, KEY_BILLING_EMERGENCY_EXEMPT));
+  return row?.value === "true";
+}
+
+export async function setBillingEmergencyExempt(exempt: boolean): Promise<void> {
+  await setSystemSetting(KEY_BILLING_EMERGENCY_EXEMPT, exempt);
+}
+
+async function setSystemSetting(key: string, enabled: boolean): Promise<void> {
+  const val = enabled ? "true" : "false";
   const [existing] = await db
     .select()
     .from(systemSettings)
-    .where(eq(systemSettings.key, KEY_BILLING_ENABLED));
+    .where(eq(systemSettings.key, key));
 
-  const val = enabled ? "true" : "false";
   if (existing) {
     await db
       .update(systemSettings)
       .set({ value: val, updatedAt: new Date() })
-      .where(eq(systemSettings.key, KEY_BILLING_ENABLED));
+      .where(eq(systemSettings.key, key));
   } else {
     await db.insert(systemSettings).values({
-      key: KEY_BILLING_ENABLED,
+      key,
       value: val,
       updatedAt: new Date(),
     });
@@ -42,12 +65,20 @@ export async function isChannelBillingOk(
   const enabled = await getBillingEnabled();
   if (!enabled) return { ok: true };
 
-  const admins = await db
-    .select({ userId: lineChannelContentAdmins.userId })
+  const emergencyExempt = await getBillingEmergencyExempt();
+  if (emergencyExempt) return { ok: true };
+
+  const adminsWithUser = await db
+    .select({
+      userId: lineChannelContentAdmins.userId,
+      billingExempt: users.billingExempt,
+    })
     .from(lineChannelContentAdmins)
+    .innerJoin(users, eq(lineChannelContentAdmins.userId, users.id))
     .where(eq(lineChannelContentAdmins.lineChannelId, channelInternalId));
 
-  for (const a of admins) {
+  for (const a of adminsWithUser) {
+    if (a.billingExempt) return { ok: true };
     const roles = await db
       .select({ roleId: userRoles.roleId })
       .from(userRoles)

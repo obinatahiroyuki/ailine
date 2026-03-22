@@ -1,23 +1,30 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { systemSettings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isSystemAdmin } from "@/lib/auth";
 import { BillingToggleForm } from "./billing-toggle-form";
+import { BillingEmergencyExemptForm } from "./billing-emergency-exempt-form";
 
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
   if (!isSystemAdmin(session)) redirect("/admin");
 
-  const [billingRow] = await db
+  const settingsRows = await db
     .select()
     .from(systemSettings)
-    .where(eq(systemSettings.key, "billing_enabled"));
+    .where(
+      inArray(systemSettings.key, ["billing_enabled", "billing_emergency_exempt"])
+    );
 
-  const billingEnabled = billingRow?.value === "true";
+  const billingEnabled =
+    settingsRows.find((r) => r.key === "billing_enabled")?.value === "true";
+  const billingEmergencyExempt =
+    settingsRows.find((r) => r.key === "billing_emergency_exempt")?.value ===
+    "true";
 
   return (
     <div>
@@ -35,10 +42,20 @@ export default async function SettingsPage() {
 
       <div className="space-y-6">
         <div className="rounded-lg border border-neutral-200 bg-white p-6">
-          <h2 className="mb-4 font-medium text-neutral-900">課金設定</h2>
+          <h2 className="mb-4 font-medium text-neutral-900">課金設定（全体）</h2>
           <BillingToggleForm initialEnabled={billingEnabled} />
           <p className="mt-4 text-sm text-neutral-500">
-            課金を有効にすると、コンテンツ管理者はStripeでサブスクリプション契約が必要になります。システム管理者がコンテンツ管理者でもあるチャネルは課金免除です。
+            課金を有効にすると、コンテンツ管理者はStripeでサブスクリプション契約が必要になります。
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-white p-6">
+          <h2 className="mb-4 font-medium text-neutral-900">
+            緊急時：全員課金免除
+          </h2>
+          <BillingEmergencyExemptForm initialEnabled={billingEmergencyExempt} />
+          <p className="mt-4 text-sm text-neutral-500">
+            緊急時にONにすると、全コンテンツ管理者が課金なしで利用できます。解除すると個別設定・サブスクに戻ります。
           </p>
         </div>
       </div>
