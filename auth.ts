@@ -16,6 +16,7 @@ import {
 import { ROLE_SYSTEM_ADMIN } from "./lib/auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true, // Vercel 等でのセッション・リダイレクトに必要
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -57,6 +58,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/admin/login",
   },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30日
+  },
   callbacks: {
     async signIn({ user, account }) {
       if (
@@ -83,14 +88,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async session({ session, user }) {
+    async jwt({ token, user }) {
+      // Credentials ログイン時は user が渡る。JWT に id を保持
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    async session({ session, user, token }) {
       if (session.user) {
-        session.user.id = user.id;
-        const roleRows = await db
-          .select({ roleId: userRoles.roleId })
-          .from(userRoles)
-          .where(eq(userRoles.userId, user.id));
-        session.user.roles = roleRows.map((r) => r.roleId);
+        // OAuth 時は user、Credentials 時は token.sub からユーザーIDを取得
+        const userId = user?.id ?? token?.sub;
+        if (userId) {
+          session.user.id = userId;
+          const roleRows = await db
+            .select({ roleId: userRoles.roleId })
+            .from(userRoles)
+            .where(eq(userRoles.userId, userId));
+          session.user.roles = roleRows.map((r) => r.roleId);
+        }
       }
       return session;
     },
