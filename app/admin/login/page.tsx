@@ -18,17 +18,14 @@ function LoginButtons() {
     const form = e.currentTarget;
     const formData = new FormData(form);
     try {
-      const result = await signIn("credentials", {
+      await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
         callbackUrl,
         redirect: true, // true で NextAuth が Cookie を設定してからリダイレクト
       });
-      // redirect: true の場合は成功時リダイレクトされるためここには来ない
-      if (result?.error) {
-        setCredentialError(true);
-        setIsLoading(false);
-      }
+      // redirect: true の場合はリダイレクトされるためここには来ない
+      // エラー時は /admin/login?error=CredentialsSignin にリダイレクトされる
     } catch {
       setIsLoading(false);
     }
