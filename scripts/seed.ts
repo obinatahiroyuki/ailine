@@ -52,7 +52,7 @@ async function seed() {
       await db.insert(users).values({
         id: userId,
         email: initialAdminEmail,
-        name: "初回管理者",
+        name: "システム管理者",
         password: passwordHash,
         createdAt: new Date(),
         updatedAt: new Date(),

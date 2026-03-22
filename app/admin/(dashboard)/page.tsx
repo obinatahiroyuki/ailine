@@ -86,7 +86,7 @@ export default async function AdminPage() {
         ダッシュボード
       </h1>
       <p className="text-neutral-600">
-        ようこそ、{session?.user?.name ?? session?.user?.email} さん
+        ようこそ、{systemAdmin ? "システム管理者" : (session?.user?.name ?? session?.user?.email)} さん
       </p>
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
