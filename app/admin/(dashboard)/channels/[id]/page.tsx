@@ -11,7 +11,7 @@ import {
   plans,
   userRoles,
 } from "@/lib/db/schema";
-import { eq, and, isNotNull, ne, desc } from "drizzle-orm";
+import { eq, and, isNotNull, ne, desc, sql } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AiProviderForm } from "./ai-form";
@@ -101,6 +101,14 @@ export default async function ChannelDetailPage({
     .from(channelDocuments)
     .where(eq(channelDocuments.lineChannelId, id))
     .orderBy(desc(channelDocuments.createdAt));
+
+  const [totalRow] = await db
+    .select({
+      totalChars: sql<number>`coalesce(sum(length(${channelDocuments.content})), 0)`,
+    })
+    .from(channelDocuments)
+    .where(eq(channelDocuments.lineChannelId, id));
+  const totalChars = totalRow?.totalChars ?? 0;
 
   const billingEnabled = await getBillingEnabled();
 
@@ -207,6 +215,7 @@ export default async function ChannelDetailPage({
         <DocumentsSection
           lineChannelId={id}
           documents={documents}
+          totalChars={totalChars}
         />
 
         {prompt && (

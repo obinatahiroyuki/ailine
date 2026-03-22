@@ -3,12 +3,16 @@
 import { useState } from "react";
 import { uploadDocument, deleteDocument } from "./documents-actions";
 
+const MAX_KNOWLEDGE_CHARS = 50_000;
+
 export function DocumentsSection({
   lineChannelId,
   documents,
+  totalChars,
 }: {
   lineChannelId: string;
   documents: { id: string; filename: string; contentType: string; createdAt: Date }[];
+  totalChars: number;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -74,6 +78,23 @@ export function DocumentsSection({
       <p className="mb-4 text-xs text-neutral-500">
         対応形式: PDF, TXT, MD, CSV, JSON（各ファイル最大10MB）
       </p>
+
+      {documents.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <p className="text-sm text-neutral-600">
+            合計 <span className="font-medium">{totalChars.toLocaleString()}</span> 文字
+          </p>
+          {totalChars > MAX_KNOWLEDGE_CHARS ? (
+            <p className="text-sm text-amber-700">
+              ⚠ {MAX_KNOWLEDGE_CHARS.toLocaleString()}文字を超えています。先頭{MAX_KNOWLEDGE_CHARS.toLocaleString()}文字のみAIに渡されます。不要なドキュメントを削除するか、内容を短くすることをおすすめします。
+            </p>
+          ) : (
+            <p className="text-xs text-neutral-500">
+              （{MAX_KNOWLEDGE_CHARS.toLocaleString()}文字を超えると、超えた分はAIに渡されません）
+            </p>
+          )}
+        </div>
+      )}
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
