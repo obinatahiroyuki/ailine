@@ -39,9 +39,7 @@ export function BillingExemptCell({
         disabled={isLoading}
         className="h-4 w-4 rounded border-neutral-300"
       />
-      <span className="text-sm">
-        {exempt ? "免除" : "課金"}
-      </span>
+      <span className="text-sm">免除</span>
     </label>
   );
 }
