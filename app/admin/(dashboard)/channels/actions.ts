@@ -18,6 +18,7 @@ export async function createLineChannel(formData: FormData) {
     return { error: "ログインが必要です" };
   }
 
+  const name = formData.get("name")?.toString()?.trim();
   const channelId = formData.get("channelId")?.toString()?.trim();
   const channelSecret = formData.get("channelSecret")?.toString()?.trim();
   const accessToken = formData.get("accessToken")?.toString()?.trim();
@@ -39,6 +40,7 @@ export async function createLineChannel(formData: FormData) {
     const [channel] = await db
       .insert(lineChannels)
       .values({
+        name: name || null,
         channelId,
         channelSecret,
         accessToken,

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import {
   lineChannels,
   lineChannelContentAdmins,
+  users,
 } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
@@ -33,6 +34,7 @@ export default async function ChannelsPage() {
     ? await db
         .select({
           id: lineChannels.id,
+          name: lineChannels.name,
           channelId: lineChannels.channelId,
           createdAt: lineChannels.createdAt,
         })
@@ -41,6 +43,7 @@ export default async function ChannelsPage() {
     : await db
         .select({
           id: lineChannels.id,
+          name: lineChannels.name,
           channelId: lineChannels.channelId,
           createdAt: lineChannels.createdAt,
         })
@@ -51,6 +54,22 @@ export default async function ChannelsPage() {
         )
         .where(eq(lineChannelContentAdmins.userId, session.user.id))
         .orderBy(desc(lineChannels.createdAt));
+
+  const adminNamesByChannel = new Map<string, string[]>();
+  for (const ch of myChannels) {
+    const admins = await db
+      .select({
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(lineChannelContentAdmins)
+      .innerJoin(users, eq(lineChannelContentAdmins.userId, users.id))
+      .where(eq(lineChannelContentAdmins.lineChannelId, ch.id));
+    adminNamesByChannel.set(
+      ch.id,
+      admins.map((a) => a.userName || a.userEmail || "—")
+    );
+  }
 
   const webhookBaseUrl = getWebhookBaseUrl();
   const webhookUrl = `${webhookBaseUrl}/api/webhook/line`;
@@ -99,32 +118,58 @@ export default async function ChannelsPage() {
             チャネルがまだ登録されていません。上記フォームから登録してください。
           </p>
         ) : (
-          <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200">
-            {myChannels.map((ch) => (
-              <li
-                key={ch.id}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <div>
-                  <span className="font-mono text-sm text-neutral-900">
-                    {ch.channelId}
-                  </span>
-                  <span className="ml-2 text-xs text-neutral-500">
-                    {new Date(ch.createdAt).toLocaleDateString("ja-JP")} 登録
-                  </span>
-                  <p className="mt-1 font-mono text-xs text-neutral-500">
-                    Webhook: {webhookUrl}/{ch.channelId}
-                  </p>
-                </div>
-                <Link
-                  href={`/admin/channels/${ch.id}`}
-                  className="text-sm text-neutral-600 hover:text-neutral-900"
-                >
-                  設定 →
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto rounded-lg border border-neutral-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-200 bg-neutral-50">
+                  <th className="px-4 py-3 text-left font-medium text-neutral-900">
+                    チャネル名
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-neutral-900">
+                    コンテンツ管理者
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-neutral-900">
+                    チャネルID
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-neutral-900">
+                    Webhook
+                  </th>
+                  <th className="px-4 py-3 text-right font-medium text-neutral-900">
+                    操作
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {myChannels.map((ch) => (
+                  <tr
+                    key={ch.id}
+                    className="border-b border-neutral-100 last:border-0"
+                  >
+                    <td className="px-4 py-3 text-neutral-900">
+                      {ch.name || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {(adminNamesByChannel.get(ch.id) ?? []).join(", ")}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-neutral-900">
+                      {ch.channelId}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-neutral-500">
+                      {webhookUrl}/{ch.channelId}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/admin/channels/${ch.id}`}
+                        className="text-neutral-600 hover:text-neutral-900"
+                      >
+                        設定 →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

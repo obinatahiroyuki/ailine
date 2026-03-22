@@ -95,6 +95,7 @@ export const lineChannels = sqliteTable("line_channels", {
   id: text("id")
     .primaryKey()
     .$defaultFn(uuid),
+  name: text("name"),
   channelId: text("channel_id").notNull().unique(),
   channelSecret: text("channel_secret").notNull(),
   accessToken: text("access_token").notNull(),

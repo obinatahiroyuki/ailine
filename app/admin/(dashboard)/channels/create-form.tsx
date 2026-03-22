@@ -36,6 +36,21 @@ export function CreateChannelForm() {
       <div className="space-y-4">
         <div>
           <label
+            htmlFor="channelName"
+            className="mb-1 block text-sm font-medium text-neutral-700"
+          >
+            チャネル名（任意）
+          </label>
+          <input
+            id="channelName"
+            name="name"
+            type="text"
+            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            placeholder="例：〇〇Bot、サポート用チャネル"
+          />
+        </div>
+        <div>
+          <label
             htmlFor="channelId"
             className="mb-1 block text-sm font-medium text-neutral-700"
           >

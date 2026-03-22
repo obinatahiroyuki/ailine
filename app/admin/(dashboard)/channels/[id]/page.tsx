@@ -25,6 +25,7 @@ import { ChannelAdminsSection } from "./channel-admins";
 import { SubscriptionSection } from "./subscription-section";
 import { UserPaymentSection } from "./user-payment-section";
 import { LineUsersSection } from "./line-users-section";
+import { ChannelNameForm } from "./channel-name-form";
 import { getLineUserProfile } from "@/lib/line/profile";
 import { getBillingEnabled } from "@/lib/billing";
 import { ROLE_SYSTEM_ADMIN } from "@/lib/auth";
@@ -297,6 +298,12 @@ export default async function ChannelDetailPage({
       <div className="space-y-6">
         <div className="rounded-lg border border-neutral-200 bg-white p-6">
           <h2 className="mb-4 font-medium text-neutral-900">基本情報</h2>
+          <div className="mb-4">
+            <ChannelNameForm
+              lineChannelId={id}
+              initialName={ch.name}
+            />
+          </div>
           <dl className="space-y-2 text-sm">
             <div>
               <dt className="text-neutral-500">チャネルID</dt>
