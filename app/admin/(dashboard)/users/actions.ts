@@ -221,6 +221,27 @@ export async function resetUserPassword(
   }
 }
 
+export async function updateOwnName(name: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインが必要です" };
+
+  const trimmed = name?.trim() ?? "";
+  if (!trimmed) return { error: "名前を入力してください" };
+
+  try {
+    await db
+      .update(users)
+      .set({ name: trimmed, updatedAt: new Date() })
+      .where(eq(users.id, session.user.id));
+
+    revalidatePath("/admin/account");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "名前の変更に失敗しました" };
+  }
+}
+
 export async function changeOwnPassword(
   currentPassword: string,
   newPassword: string
