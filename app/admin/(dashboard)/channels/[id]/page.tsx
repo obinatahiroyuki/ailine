@@ -13,6 +13,7 @@ import {
   channelUserSubscriptions,
   conversations,
   apiUsage,
+  auditLogs,
 } from "@/lib/db/schema";
 import { eq, and, isNotNull, ne, desc, sql, inArray } from "drizzle-orm";
 import Link from "next/link";
@@ -280,6 +281,18 @@ export default async function ChannelDetailPage({
   const baseUrl = getWebhookBaseUrl();
   const webhookUrl = `${baseUrl}/api/webhook/line/${ch.channelId}`;
 
+  const recentAiErrors = await db
+    .select({ details: auditLogs.details, createdAt: auditLogs.createdAt })
+    .from(auditLogs)
+    .where(
+      and(
+        eq(auditLogs.resourceId, id),
+        eq(auditLogs.action, "ai.generation_error")
+      )
+    )
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(5);
+
   return (
     <div>
       <div className="mb-6 flex items-center gap-4">
@@ -343,6 +356,38 @@ export default async function ChannelDetailPage({
           lineChannelId={id}
           existing={aiProvider ?? null}
         />
+
+        {recentAiErrors.length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+            <h2 className="mb-3 font-medium text-red-900">
+              直近のAI応答エラー
+            </h2>
+            <p className="mb-3 text-sm text-red-800">
+              「AIの応答生成中にエラーが発生しました」と表示される場合、以下を確認してください。
+            </p>
+            <ul className="mb-3 list-inside list-disc text-sm text-red-800">
+              <li>APIキーが正しいか（有効期限・利用枠）</li>
+              <li>選択中のモデルがAPIで利用可能か（例: gpt-5.4 は Tier 3 以上が必要な場合あり）</li>
+              <li>安定したモデル例: gpt-4o-mini, gpt-4o, claude-3-5-haiku</li>
+            </ul>
+            <div className="space-y-2 text-sm">
+              {recentAiErrors.map((e, i) => {
+                let detail = "";
+                try {
+                  const d = e.details ? JSON.parse(e.details) : {};
+                  detail = [d.error, d.model, d.provider].filter(Boolean).join(" | ");
+                } catch {
+                  detail = e.details ?? "";
+                }
+                return (
+                  <div key={i} className="rounded bg-red-100/80 px-3 py-2 font-mono text-xs text-red-900">
+                    {e.createdAt ? new Date(e.createdAt).toLocaleString("ja-JP") : "—"} — {detail}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <DocumentsSection
           lineChannelId={id}

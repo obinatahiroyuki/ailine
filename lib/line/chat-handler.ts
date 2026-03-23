@@ -14,6 +14,7 @@ import { SUMMARY_MODELS } from "@/lib/ai/models";
 import { replyToLine } from "./reply";
 import { isChannelBillingOk } from "@/lib/billing";
 import { isUserSubscriptionActive } from "@/lib/user-billing";
+import { logAudit } from "@/lib/audit";
 
 type AiProviderType = "openai" | "anthropic" | "google";
 
@@ -289,7 +290,18 @@ export async function handleLineMessage(
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("AI generation error:", msg, err);
+    console.error("AI generation error:", { msg, model: aiProvider.model, provider: aiProvider.provider }, err);
+    await logAudit({
+      action: "ai.generation_error",
+      resource: "line_channel",
+      resourceId: channel.id,
+      details: {
+        error: msg,
+        model: aiProvider.model,
+        provider: aiProvider.provider,
+        channelId: channel.channelId,
+      },
+    });
     await replyToLine(
       channel.accessToken,
       replyToken,

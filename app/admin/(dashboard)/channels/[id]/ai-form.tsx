@@ -48,6 +48,14 @@ export function AiProviderForm({
       className="rounded-lg border border-neutral-200 bg-white p-6"
     >
       <h2 className="mb-4 font-medium text-neutral-900">AI API 設定</h2>
+      {existing && (
+        <div className="mb-4 rounded-lg bg-neutral-50 px-4 py-3 text-sm">
+          <span className="font-medium text-neutral-700">現在の設定: </span>
+          <span className="text-neutral-900">
+            {PROVIDER_LABELS[provider]} / {existing.model}
+          </span>
+        </div>
+      )}
       <p className="mb-4 text-sm text-neutral-500">
         メッセージ応答に使用するAIプロバイダーとAPIキーを設定します。
       </p>

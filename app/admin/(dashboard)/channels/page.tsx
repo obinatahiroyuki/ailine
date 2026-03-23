@@ -4,6 +4,7 @@ import {
   lineChannels,
   lineChannelContentAdmins,
   users,
+  aiProviders,
 } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
@@ -54,6 +55,20 @@ export default async function ChannelsPage() {
         )
         .where(eq(lineChannelContentAdmins.userId, session.user.id))
         .orderBy(desc(lineChannels.createdAt));
+
+  const aiByChannel = new Map<string, { provider: string; model: string }>();
+  for (const ch of myChannels) {
+    const [ai] = await db
+      .select({ provider: aiProviders.provider, model: aiProviders.model })
+      .from(aiProviders)
+      .where(eq(aiProviders.lineChannelId, ch.id));
+    if (ai) aiByChannel.set(ch.id, ai);
+  }
+  const PROVIDER_LABELS: Record<string, string> = {
+    openai: "OpenAI",
+    anthropic: "Claude",
+    google: "Gemini",
+  };
 
   const adminNamesByChannel = new Map<string, string[]>();
   for (const ch of myChannels) {
@@ -129,6 +144,9 @@ export default async function ChannelsPage() {
                     コンテンツ管理者
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-neutral-900">
+                    AI
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-neutral-900">
                     チャネルID
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-neutral-900">
@@ -150,6 +168,17 @@ export default async function ChannelsPage() {
                     </td>
                     <td className="px-4 py-3 text-neutral-600">
                       {(adminNamesByChannel.get(ch.id) ?? []).join(", ")}
+                    </td>
+                    <td className="px-4 py-3 text-neutral-600">
+                      {aiByChannel.has(ch.id) ? (
+                        <span>
+                          {PROVIDER_LABELS[aiByChannel.get(ch.id)!.provider] ??
+                            aiByChannel.get(ch.id)!.provider}{" "}
+                          / {aiByChannel.get(ch.id)!.model}
+                        </span>
+                      ) : (
+                        <span className="text-neutral-400">未設定</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-neutral-900">
                       {ch.channelId}

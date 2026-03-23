@@ -13,6 +13,7 @@ const ACTION_LABELS: Record<string, string> = {
   "channel_admin.remove": "コンテンツ管理者削除",
   "role.assign": "ロール付与",
   "role.remove": "ロール削除",
+  "ai.generation_error": "AI応答エラー",
 };
 
 export default async function AuditLogsPage() {
