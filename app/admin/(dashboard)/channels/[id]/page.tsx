@@ -388,6 +388,7 @@ export default async function ChannelDetailPage({
         />
 
         <LineUsersSection
+          lineChannelId={id}
           users={lineUsersForList}
           userPaymentRequired={ch.userPaymentRequired ?? false}
         />
