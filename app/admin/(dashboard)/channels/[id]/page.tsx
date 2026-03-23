@@ -397,12 +397,13 @@ export default async function ChannelDetailPage({
 
         {prompt && (
           <PromptForm
-            lineChannelId={id}
-            initial={{
+          lineChannelId={id}
+          initial={{
               systemPrompt: prompt.systemPrompt,
               contextTurns: prompt.contextTurns,
               summaryMessageCount: prompt.summaryMessageCount,
               maxResponseChars: prompt.maxResponseChars,
+              fullContextInterval: prompt.fullContextInterval ?? 0,
             }}
           />
         )}

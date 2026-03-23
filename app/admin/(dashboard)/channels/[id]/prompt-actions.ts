@@ -41,6 +41,10 @@ export async function savePrompt(lineChannelId: string, formData: FormData) {
     5000,
     Math.max(100, parseInt(formData.get("maxResponseChars")?.toString() ?? "5000", 10))
   );
+  const fullContextInterval = Math.min(
+    100,
+    Math.max(0, parseInt(formData.get("fullContextInterval")?.toString() ?? "0", 10))
+  );
 
   try {
     await db
@@ -50,6 +54,7 @@ export async function savePrompt(lineChannelId: string, formData: FormData) {
         contextTurns,
         summaryMessageCount,
         maxResponseChars,
+        fullContextInterval,
         updatedAt: new Date(),
       })
       .where(eq(prompts.lineChannelId, lineChannelId));

@@ -148,6 +148,7 @@ export async function handleLineMessage(
   const contextTurns = promptConfig?.contextTurns ?? 15;
   const summaryMessageCount = promptConfig?.summaryMessageCount ?? 20;
   const maxResponseChars = promptConfig?.maxResponseChars ?? 5000;
+  const fullContextInterval = promptConfig?.fullContextInterval ?? 0;
 
   // ナレッジベース（PDF・テキスト）を読み込み
   const docs = await db
@@ -245,7 +246,12 @@ export async function handleLineMessage(
   }));
   const chatMessages: { role: "system" | "user" | "assistant"; content: string }[] = [];
 
-  if (systemPrompt || summary) {
+  const userMessageCount = allMessages.filter((m) => m.role === "user").length;
+  const shouldSendFullContext =
+    fullContextInterval === 0 ||
+    userMessageCount % fullContextInterval === 0;
+
+  if (shouldSendFullContext && (systemPrompt || summary)) {
     let systemContent = systemPrompt || "";
     if (summary) {
       systemContent =
@@ -253,6 +259,11 @@ export async function handleLineMessage(
         `【過去の会話の要約】\n${summary}`;
     }
     chatMessages.push({ role: "system", content: systemContent });
+  } else if (!shouldSendFullContext && (systemPrompt || summary)) {
+    const minimalSystem =
+      (summary ? `【過去の会話の要約】\n${summary}\n\n` : "") +
+      "前回までのシステム指示・参考ドキュメントに従って応答してください。";
+    chatMessages.push({ role: "system", content: minimalSystem });
   }
 
   for (const m of contextMessages) {

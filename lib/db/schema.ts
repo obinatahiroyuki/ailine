@@ -173,6 +173,8 @@ export const prompts = sqliteTable("prompts", {
   contextTurns: integer("context_turns").notNull().default(15),
   summaryMessageCount: integer("summary_message_count").notNull().default(20),
   maxResponseChars: integer("max_response_chars").notNull().default(5000),
+  /** 0=毎回フル送信, N=N回ごとにフル送信（1回目,1+N回目,1+2N回目...） */
+  fullContextInterval: integer("full_context_interval").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

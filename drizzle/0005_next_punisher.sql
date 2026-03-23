@@ -1,0 +1,1 @@
+ALTER TABLE `prompts` ADD `full_context_interval` integer DEFAULT 0 NOT NULL;

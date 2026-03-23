@@ -13,16 +13,26 @@ export function PromptForm({
     contextTurns: number;
     summaryMessageCount: number;
     maxResponseChars: number;
+    fullContextInterval: number;
   };
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fullContextMode, setFullContextMode] = useState<"always" | "interval">(
+    initial.fullContextInterval === 0 ? "always" : "interval"
+  );
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
     const formData = new FormData(e.currentTarget);
+    formData.set(
+      "fullContextInterval",
+      fullContextMode === "always"
+        ? "0"
+        : String(formData.get("fullContextInterval") ?? "10")
+    );
     const result = await savePrompt(lineChannelId, formData);
     setIsLoading(false);
     if (result?.error) {
@@ -99,6 +109,49 @@ export function PromptForm({
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
             <p className="mt-1 text-xs text-neutral-500">100〜5000（LINE上限）</p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <label className="mb-2 block text-sm font-medium text-neutral-700">
+            プロンプト・ナレッジの送信方法
+          </label>
+          <p className="mb-3 text-xs text-neutral-500">
+            システムプロンプトとナレッジベースをAPIに送る頻度。毎回送ると確実ですがトークン消費が多いです。N回おきにすると1, 1+N, 1+2N回目などでフル送信し、それ以外は省略してAPI使用量を節約します。
+          </p>
+          <div className="space-y-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="fullContextMode"
+                checked={fullContextMode === "always"}
+                onChange={() => setFullContextMode("always")}
+              />
+              <span className="text-sm">毎回送る</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="fullContextMode"
+                checked={fullContextMode === "interval"}
+                onChange={() => setFullContextMode("interval")}
+              />
+              <span className="text-sm">
+                <input
+                  name="fullContextInterval"
+                  type="number"
+                  min={2}
+                  max={100}
+                  defaultValue={
+                    initial.fullContextInterval > 0
+                      ? initial.fullContextInterval
+                      : 10
+                  }
+                  disabled={fullContextMode === "always"}
+                  className="mx-1 w-14 rounded border border-neutral-300 px-2 py-1 text-sm"
+                />
+                回おきに送る（1回目、11回目、21回目…）
+              </span>
+            </label>
           </div>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
