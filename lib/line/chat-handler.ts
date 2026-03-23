@@ -40,10 +40,32 @@ export async function handleLineMessage(
     .from(aiProviders)
     .where(eq(aiProviders.lineChannelId, channel.id));
 
-  const [promptConfig] = await db
-    .select()
-    .from(prompts)
-    .where(eq(prompts.lineChannelId, channel.id));
+  let promptConfig:
+    | {
+        systemPrompt?: string;
+        contextTurns?: number;
+        summaryMessageCount?: number;
+        maxResponseChars?: number;
+        fullContextInterval?: number;
+      }
+    | undefined;
+  try {
+    [promptConfig] = await db
+      .select()
+      .from(prompts)
+      .where(eq(prompts.lineChannelId, channel.id));
+  } catch {
+    const rows = await db
+      .select({
+        systemPrompt: prompts.systemPrompt,
+        contextTurns: prompts.contextTurns,
+        summaryMessageCount: prompts.summaryMessageCount,
+        maxResponseChars: prompts.maxResponseChars,
+      })
+      .from(prompts)
+      .where(eq(prompts.lineChannelId, channel.id));
+    promptConfig = rows[0] ? { ...rows[0], fullContextInterval: 0 } : undefined;
+  }
 
   if (!aiProvider) {
     await replyToLine(

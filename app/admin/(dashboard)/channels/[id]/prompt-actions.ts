@@ -46,23 +46,33 @@ export async function savePrompt(lineChannelId: string, formData: FormData) {
     Math.max(0, parseInt(formData.get("fullContextInterval")?.toString() ?? "0", 10))
   );
 
+  const baseUpdate = {
+    systemPrompt,
+    contextTurns,
+    summaryMessageCount,
+    maxResponseChars,
+    updatedAt: new Date(),
+  };
+
   try {
     await db
       .update(prompts)
-      .set({
-        systemPrompt,
-        contextTurns,
-        summaryMessageCount,
-        maxResponseChars,
-        fullContextInterval,
-        updatedAt: new Date(),
-      })
+      .set({ ...baseUpdate, fullContextInterval })
       .where(eq(prompts.lineChannelId, lineChannelId));
 
     revalidatePath(`/admin/channels/${lineChannelId}`);
     return { success: true };
   } catch (err) {
-    console.error(err);
-    return { error: "保存に失敗しました" };
+    try {
+      await db
+        .update(prompts)
+        .set(baseUpdate)
+        .where(eq(prompts.lineChannelId, lineChannelId));
+      revalidatePath(`/admin/channels/${lineChannelId}`);
+      return { success: true };
+    } catch (err2) {
+      console.error(err2);
+      return { error: "保存に失敗しました" };
+    }
   }
 }

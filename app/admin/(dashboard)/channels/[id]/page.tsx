@@ -94,10 +94,30 @@ export default async function ChannelDetailPage({
     .from(aiProviders)
     .where(eq(aiProviders.lineChannelId, id));
 
-  const [prompt] = await db
-    .select()
-    .from(prompts)
-    .where(eq(prompts.lineChannelId, id));
+  let prompt: {
+    systemPrompt: string;
+    contextTurns: number;
+    summaryMessageCount: number;
+    maxResponseChars: number;
+    fullContextInterval?: number;
+  } | undefined;
+  try {
+    [prompt] = await db
+      .select()
+      .from(prompts)
+      .where(eq(prompts.lineChannelId, id));
+  } catch {
+    const rows = await db
+      .select({
+        systemPrompt: prompts.systemPrompt,
+        contextTurns: prompts.contextTurns,
+        summaryMessageCount: prompts.summaryMessageCount,
+        maxResponseChars: prompts.maxResponseChars,
+      })
+      .from(prompts)
+      .where(eq(prompts.lineChannelId, id));
+    prompt = rows[0] ? { ...rows[0], fullContextInterval: 0 } : undefined;
+  }
 
   const documents = await db
     .select({
